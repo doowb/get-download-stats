@@ -19,8 +19,15 @@
   "scripts": {
     "test": "mocha"
   },
-  "dependencies": {},
+  "dependencies": {
+    "array-sort": "^0.1.1",
+    "async": "^1.5.2",
+    "download-stats": "^0.1.0",
+    "extend-shallow": "^2.0.1",
+    "through2": "^2.0.0"
+  },
   "devDependencies": {
+    "assemble": "^0.7.6",
     "mocha": "*",
     "should": "*"
   },
