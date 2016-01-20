@@ -1,7 +1,7 @@
 'use strict';
 
 var assemble = require('assemble');
-var download = require('../');
+var stats = require('../');
 var app = assemble();
 
 // custom collection to store download stats files
@@ -14,13 +14,6 @@ app.onLoad(/\.json$/, function(file, next) {
   if (file.stem === 'assemble') {
     file.data.start = '2010-01-01';
   }
-  file.json = JSON.parse(file.content);
-  next();
-});
-
-// before writing the file back out, convert the json back into a string
-app.preWrite(/\.json$/, function(file, next) {
-  file.content = JSON.stringify(file.json, null, 2);
   next();
 });
 
@@ -41,7 +34,7 @@ app.task('default', ['load'], function() {
   start.setUTCDate(start.getUTCDate() - 10);
 
   return app.toStream('stats')
-    .pipe(download(app, {start: start}))
+    .pipe(stats(app, {start: start, prop: 'downloads'}))
     .pipe(app.dest('downloads'));
 });
 
