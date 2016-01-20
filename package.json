@@ -33,7 +33,16 @@
     "mocha": "*",
     "should": "*"
   },
-  "keywords": [],
+  "keywords": [
+    "assemble",
+    "download",
+    "download-stats",
+    "downloads",
+    "npm",
+    "npm-stats",
+    "plugin",
+    "stats"
+  ],
   "verb": {
     "related": {
       "list": [
