@@ -7,12 +7,7 @@
 
 'use strict';
 
-var extend = require('extend-shallow');
-var through = require('through2');
-var async = require('async');
-var sort = require('array-sort');
-var union = require('union-value');
-var get = require('download-stats').get;
+var utils = require('./utils');
 
 /**
  * Pipeline plugin used to get npm download stats for a repository
@@ -37,48 +32,48 @@ var get = require('download-stats').get;
  */
 
 module.exports = function(app, options) {
-  var opts = extend({start: '2010-01-01'}, options);
+  var opts = utils.extend({start: '2010-01-01'}, options);
 
-  return through.obj(function(file, enc, cb) {
+  return utils.through.obj(function(file, enc, cb) {
     var fileData = file.data || {};
-    var jsonData = file.json || tryParse(file.content);
+    var jsonData = file.json || utils.tryParse(file.content);
     var jsonProp = opts.prop || fileData.prop;
     var dataProp = jsonProp || 'downloads';
 
     var stream = this;
     var results = {};
     var repo = opts.repo || fileData.repo;
-    results[dataProp] = ((jsonProp ? jsonData[jsonProp] : jsonData) || []).map(Data);
-    results[dataProp] = sort(results[dataProp], 'day').reverse();
+    results[dataProp] = ((jsonProp ? jsonData[jsonProp] : jsonData) || []).map(utils.Data);
+    results[dataProp] = utils.sort(results[dataProp], 'day').reverse();
 
     var start = (results[dataProp].length === 0 ? (fileData.start || opts.start) : results[dataProp][0].day);
     if (typeof start === 'string') {
       start += ' 00:00:00';
     }
     if (start instanceof Date) {
-      normalizeDate(start, 1);
+      utils.normalizeDate(start, 1);
     }
 
     var day = new Date(start);
     var now = new Date();
-    normalizeDate(now, 0);
+    utils.normalizeDate(now, 0);
 
     // faster to get all days for an individual repo
     if (repo) {
       app.emit('progress', {repo: repo, day: (day + ' to ' + now)});
-      return get(day, now, repo)
+      return utils.stats.get(day, now, repo)
         .on('data', handle)
         .on('error', done)
         .on('end', done);
     }
 
     // get individual days when getting all npm downloads
-    async.whilst(function() {
+    utils.async.whilst(function() {
       day.setUTCDate(day.getUTCDate() + 1);
       return day < now;
     }, function(next) {
       app.emit('progress', {day: day});
-      get(day, day)
+      utils.stats.get(day, day)
         .on('data', handle)
         .on('error', next)
         .on('end', next);
@@ -86,7 +81,7 @@ module.exports = function(app, options) {
 
     // handle adding data to the downloads array
     function handle(data) {
-      union(results, dataProp, [new Data(data)].filter(filter));
+      utils.union(results, dataProp, [utils.Data(data)].filter(filter));
     }
 
     // filter out data items already in the downloads array
@@ -117,47 +112,10 @@ module.exports = function(app, options) {
         stream.push(file);
         return cb();
       }
-      results[dataProp] = sort(results[dataProp], 'day').reverse();
+      results[dataProp] = utils.sort(results[dataProp], 'day').reverse();
       updateFile();
       stream.push(file);
       cb();
     }
   });
-};
-
-/**
- * Due to differences in times throughout the day when running
- * set all times to midnight UTC.
- */
-
-function normalizeDate(date, days) {
-  date.setDate(date.getDate() - days);
-  date.setUTCHours(0);
-  date.setUTCMinutes(0);
-  date.setUTCSeconds(0);
-}
-
-function tryParse(content) {
-  try {
-    var data = JSON.parse(content);
-    return data;
-  } catch(err) {
-    return {};
-  }
-}
-
-/**
- * Data object used to ensure days aren't duplicated in the downloads array.
- */
-
-function Data(obj) {
-  if (!(this instanceof Data)) {
-    return new Data(obj);
-  }
-  this.day = obj.day;
-  this.downloads = obj.downloads;
-}
-
-Data.prototype.toString = function() {
-  return '[' + this.day + ']: ' + this.downloads;
 };
